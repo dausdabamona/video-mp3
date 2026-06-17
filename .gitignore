@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.egg-info/
+
+# PyInstaller
+build/
+dist/
+*.spec
+
+# Binary FFmpeg yang dibundle (jangan masuk repo karena besar)
+bin/
+ffmpeg
+ffmpeg.exe
+
+# Virtual env
+.venv/
+venv/

@@ -1,0 +1,7 @@
+# Aplikasi ini hanya butuh Python standar (Tkinter sudah bawaan).
+# Drag & drop bersifat OPSIONAL — bila tkinterdnd2 tidak terpasang, aplikasi
+# tetap berjalan dan user memakai tombol "Tambah File".
+#
+# tkinterdnd2   # opsional: aktifkan drag & drop file ke jendela
+#
+# Untuk menjalankan test: pip install pytest
