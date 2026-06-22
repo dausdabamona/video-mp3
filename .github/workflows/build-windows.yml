@@ -1,0 +1,62 @@
+name: Build Windows EXE
+
+# Build .exe Windows otomatis di server GitHub (runner windows-latest).
+# Cara menjalankan:
+#   1. Buka tab "Actions" di GitHub -> pilih "Build Windows EXE" -> "Run workflow".
+#   2. ATAU push tag versi, mis:  git tag v1.0.0 && git push origin v1.0.0
+#      (tag akan otomatis membuat Release berisi .exe).
+# Hasil .exe bisa diunduh di bagian "Artifacts" tiap run, atau di Releases.
+
+on:
+  workflow_dispatch:        # tombol "Run workflow" manual
+  push:
+    tags:
+      - "v*"                # tag vX.Y.Z -> build + buat Release
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Ambil kode
+        uses: actions/checkout@v4
+
+      - name: Siapkan Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Pasang dependensi build
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller tkinterdnd2
+
+      - name: Unduh FFmpeg (Windows) untuk dibundel
+        shell: pwsh
+        run: |
+          $url = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip"
+          Invoke-WebRequest -Uri $url -OutFile ffmpeg.zip
+          Expand-Archive -Path ffmpeg.zip -DestinationPath ffmpeg_extracted -Force
+          $exe = Get-ChildItem -Path ffmpeg_extracted -Recurse -Filter ffmpeg.exe | Select-Object -First 1
+          Copy-Item $exe.FullName -Destination ffmpeg.exe
+          Write-Host "ffmpeg.exe siap di:" (Resolve-Path ffmpeg.exe)
+
+      - name: Build dengan PyInstaller (ffmpeg dibundel)
+        run: >
+          pyinstaller --onefile --windowed --name "VideoKeMP3"
+          --add-binary "ffmpeg.exe;."
+          --collect-all tkinterdnd2
+          video_to_mp3.py
+
+      - name: Unggah .exe sebagai artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: VideoKeMP3-windows
+          path: dist/VideoKeMP3.exe
+          if-no-files-found: error
+
+      - name: Buat Release bila dipicu oleh tag
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/VideoKeMP3.exe
