@@ -11,13 +11,29 @@ import subprocess
 import sys
 
 # Ekstensi yang didukung sebagai sumber konversi.
+# Catatan: "mp3" sengaja diikutkan agar file MP3 yang sudah ada bisa
+# DIKOMPRES ulang (re-encode) ke bitrate/kualitas yang lebih hemat.
 EKSTENSI_VIDEO = ("mp4", "mkv", "avi", "mov", "webm", "flv", "wmv", "m4v", "3gp", "ts")
-EKSTENSI_AUDIO = ("m4a", "aac", "wav", "flac", "ogg", "opus", "wma")
+EKSTENSI_AUDIO = ("mp3", "m4a", "aac", "wav", "flac", "ogg", "opus", "wma")
 EKSTENSI_DIDUKUNG = EKSTENSI_VIDEO + EKSTENSI_AUDIO
 
-# Bitrate yang boleh dipilih user; 192k jadi default yang seimbang.
+# Mode kompresi MP3.
+MODE_CBR = "cbr"   # bitrate tetap (-b:a), ukuran lebih dapat diprediksi
+MODE_VBR = "vbr"   # bitrate variabel (-q:a), umumnya lebih hemat pada kualitas setara
+
+# Bitrate yang boleh dipilih user (mode CBR); 192k jadi default yang seimbang.
 PILIHAN_BITRATE = ("96k", "128k", "192k", "256k", "320k")
 BITRATE_DEFAULT = "192k"
+
+# Pilihan kualitas untuk mode VBR. Setiap item: (label_untuk_UI, nilai_q_lame).
+# Nilai -q:a libmp3lame: 0 = kualitas terbaik (file besar) .. 9 = paling hemat.
+PILIHAN_KUALITAS_VBR = (
+    ("V0 — Terbaik (~245 kbps)", "0"),
+    ("V2 — Bagus (~190 kbps)", "2"),
+    ("V4 — Sedang (~165 kbps)", "4"),
+    ("V6 — Hemat (~115 kbps)", "6"),
+)
+KUALITAS_VBR_DEFAULT = "2"
 
 # Flag khusus Windows agar subprocess tidak memunculkan jendela console hitam.
 CREATE_NO_WINDOW = 0x08000000
@@ -123,25 +139,42 @@ def get_duration(path_sumber, ffmpeg_path):
     return parse_duration_to_seconds(stderr)
 
 
-def build_command(path_sumber, path_tujuan, bitrate=BITRATE_DEFAULT, ffmpeg_path="ffmpeg"):
-    """Susun daftar argumen perintah FFmpeg untuk konversi ke MP3.
+def build_command(
+    path_sumber,
+    path_tujuan,
+    bitrate=BITRATE_DEFAULT,
+    ffmpeg_path="ffmpeg",
+    mode=MODE_CBR,
+    kualitas_vbr=KUALITAS_VBR_DEFAULT,
+):
+    """Susun daftar argumen perintah FFmpeg untuk konversi/kompresi ke MP3.
 
     ``-vn`` membuang stream video, ``libmp3lame`` encoder MP3, dan
     ``-progress pipe:1`` mengalirkan progres ke stdout agar bisa diparse.
+
+    Mode kompresi:
+        - MODE_CBR: pakai ``-b:a BITRATE`` (bitrate tetap).
+        - MODE_VBR: pakai ``-q:a NILAI`` (bitrate variabel; lebih hemat).
     """
-    return [
+    perintah = [
         ffmpeg_path,
         "-y",                       # timpa file output sementara bila perlu
         "-i", path_sumber,
         "-vn",                      # buang video, ambil audio saja
         "-acodec", "libmp3lame",
-        "-b:a", bitrate,
+    ]
+    if mode == MODE_VBR:
+        perintah += ["-q:a", str(kualitas_vbr)]
+    else:
+        perintah += ["-b:a", bitrate]
+    perintah += [
         "-ar", "44100",
         "-ac", "2",
         "-progress", "pipe:1",      # aliran progres ke stdout
         "-nostats",
         path_tujuan,
     ]
+    return perintah
 
 
 def unique_output_path(path_tujuan):

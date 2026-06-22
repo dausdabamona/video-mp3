@@ -24,7 +24,11 @@ from core import converter, ffmpeg_utils
 from core.ffmpeg_utils import (
     BITRATE_DEFAULT,
     EKSTENSI_DIDUKUNG,
+    KUALITAS_VBR_DEFAULT,
+    MODE_CBR,
+    MODE_VBR,
     PILIHAN_BITRATE,
+    PILIHAN_KUALITAS_VBR,
     is_file_didukung,
 )
 
@@ -131,15 +135,48 @@ class AplikasiVideoKeMP3:
         bingkai_opsi = ttk.LabelFrame(self.root, text="Opsi", padding=10)
         bingkai_opsi.pack(fill="x", padx=10, pady=(10, 0))
 
-        ttk.Label(bingkai_opsi, text="Bitrate:").grid(row=0, column=0, sticky="w")
+        # --- Mode kompresi: bitrate tetap (CBR) atau kualitas variabel (VBR) ---
+        self.var_mode = tk.StringVar(value=MODE_CBR)
+        ttk.Label(bingkai_opsi, text="Mode:").grid(row=0, column=0, sticky="w")
+        bingkai_mode = ttk.Frame(bingkai_opsi)
+        bingkai_mode.grid(row=0, column=1, columnspan=3, sticky="w")
+        ttk.Radiobutton(
+            bingkai_mode, text="Bitrate tetap (CBR)", value=MODE_CBR,
+            variable=self.var_mode, command=self._perbarui_status_mode,
+        ).pack(side="left")
+        ttk.Radiobutton(
+            bingkai_mode, text="Kualitas/kompres (VBR)", value=MODE_VBR,
+            variable=self.var_mode, command=self._perbarui_status_mode,
+        ).pack(side="left", padx=(12, 0))
+
+        # Bitrate (dipakai pada mode CBR).
+        ttk.Label(bingkai_opsi, text="Bitrate:").grid(row=1, column=0, sticky="w", pady=(8, 0))
         self.var_bitrate = tk.StringVar(value=BITRATE_DEFAULT)
-        ttk.Combobox(
+        self.combo_bitrate = ttk.Combobox(
             bingkai_opsi,
             textvariable=self.var_bitrate,
             values=list(PILIHAN_BITRATE),
             state="readonly",
             width=8,
-        ).grid(row=0, column=1, sticky="w", padx=(6, 20))
+        )
+        self.combo_bitrate.grid(row=1, column=1, sticky="w", padx=(6, 20), pady=(8, 0))
+
+        # Kualitas VBR (dipakai pada mode VBR). Combobox menampilkan label ramah,
+        # nilai -q:a sebenarnya dipetakan lewat _kualitas_vbr_terpilih().
+        ttk.Label(bingkai_opsi, text="Kualitas:").grid(row=1, column=2, sticky="e", pady=(8, 0))
+        self._label_vbr_ke_nilai = {label: nilai for label, nilai in PILIHAN_KUALITAS_VBR}
+        label_default = next(
+            label for label, nilai in PILIHAN_KUALITAS_VBR if nilai == KUALITAS_VBR_DEFAULT
+        )
+        self.var_kualitas = tk.StringVar(value=label_default)
+        self.combo_kualitas = ttk.Combobox(
+            bingkai_opsi,
+            textvariable=self.var_kualitas,
+            values=[label for label, _ in PILIHAN_KUALITAS_VBR],
+            state="readonly",
+            width=22,
+        )
+        self.combo_kualitas.grid(row=1, column=3, sticky="w", padx=(6, 0), pady=(8, 0))
 
         self.var_sama_sumber = tk.BooleanVar(value=True)
         ttk.Checkbutton(
@@ -147,20 +184,21 @@ class AplikasiVideoKeMP3:
             text="Simpan di folder yang sama dengan sumber",
             variable=self.var_sama_sumber,
             command=self._perbarui_status_folder,
-        ).grid(row=0, column=2, sticky="w")
+        ).grid(row=2, column=0, columnspan=4, sticky="w", pady=(8, 0))
 
         ttk.Label(bingkai_opsi, text="Folder hasil:").grid(
-            row=1, column=0, sticky="w", pady=(8, 0)
+            row=3, column=0, sticky="w", pady=(8, 0)
         )
         self.var_folder = tk.StringVar(value="")
         self.entri_folder = ttk.Entry(bingkai_opsi, textvariable=self.var_folder, width=50)
-        self.entri_folder.grid(row=1, column=1, columnspan=2, sticky="we", pady=(8, 0))
+        self.entri_folder.grid(row=3, column=1, columnspan=2, sticky="we", pady=(8, 0))
         self.tombol_pilih_folder = ttk.Button(
             bingkai_opsi, text="Pilih…", command=self.pilih_folder_hasil
         )
-        self.tombol_pilih_folder.grid(row=1, column=3, padx=(6, 0), pady=(8, 0))
+        self.tombol_pilih_folder.grid(row=3, column=3, padx=(6, 0), pady=(8, 0))
         bingkai_opsi.columnconfigure(1, weight=1)
         self._perbarui_status_folder()
+        self._perbarui_status_mode()
 
         # --- Progres total ---
         bingkai_progres = ttk.Frame(self.root, padding=(10, 8))
@@ -268,6 +306,16 @@ class AplikasiVideoKeMP3:
         self.entri_folder.config(state=keadaan)
         self.tombol_pilih_folder.config(state=keadaan)
 
+    def _perbarui_status_mode(self):
+        # Aktifkan kontrol sesuai mode: CBR -> bitrate, VBR -> kualitas.
+        vbr = self.var_mode.get() == MODE_VBR
+        self.combo_bitrate.config(state="disabled" if vbr else "readonly")
+        self.combo_kualitas.config(state="readonly" if vbr else "disabled")
+
+    def _kualitas_vbr_terpilih(self):
+        """Petakan label combobox kualitas ke nilai -q:a libmp3lame."""
+        return self._label_vbr_ke_nilai.get(self.var_kualitas.get(), KUALITAS_VBR_DEFAULT)
+
     def pilih_folder_hasil(self):
         folder = filedialog.askdirectory(title="Pilih folder hasil")
         if folder:
@@ -329,12 +377,14 @@ class AplikasiVideoKeMP3:
             for p in self.pekerjaan.values()
         ]
         bitrate = self.var_bitrate.get()
+        mode = self.var_mode.get()
+        kualitas_vbr = self._kualitas_vbr_terpilih()
         self.thread_konversi = threading.Thread(
-            target=self._worker, args=(daftar, bitrate), daemon=True
+            target=self._worker, args=(daftar, bitrate, mode, kualitas_vbr), daemon=True
         )
         self.thread_konversi.start()
 
-    def _worker(self, daftar, bitrate):
+    def _worker(self, daftar, bitrate, mode, kualitas_vbr):
         """Berjalan di thread terpisah. Hanya berkomunikasi lewat self.antrean."""
         total = len(daftar)
         for indeks, (iid, sumber, folder_tujuan) in enumerate(daftar):
@@ -354,6 +404,7 @@ class AplikasiVideoKeMP3:
                     sumber, tujuan, self.ffmpeg_path,
                     bitrate=bitrate, on_progress=on_progress,
                     batal_event=self.batal_event,
+                    mode=mode, kualitas_vbr=kualitas_vbr,
                 )
             except Exception as e:  # jaring pengaman: 1 file gagal jangan jatuhkan app
                 hasil = converter.HasilKonversi(converter.Status.GAGAL, pesan=str(e))

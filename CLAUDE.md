@@ -36,8 +36,12 @@ tests/               # pytest (tanpa GUI; tes ffmpeg nyata di-skip bila tak ada)
 
 ## Aturan teknis penting
 
-- Perintah konversi:
+- Perintah konversi (mode CBR/bitrate tetap):
   `ffmpeg -y -i SRC -vn -acodec libmp3lame -b:a BITRATE -ar 44100 -ac 2 -progress pipe:1 -nostats DST`
+- Mode VBR (kompres, kualitas variabel): ganti `-b:a BITRATE` dengan `-q:a NILAI`
+  (0 terbaik .. 9 paling hemat). Lihat `MODE_CBR`/`MODE_VBR` di `ffmpeg_utils`.
+- **Kompres MP3**: ekstensi `mp3` ikut didukung sebagai input agar bisa
+  di-re-encode lebih hemat; `unique_output_path()` menjaga file asli tak tertimpa.
 - **Windows**: semua `subprocess` pakai `creationflags=0x08000000`
   (CREATE_NO_WINDOW) agar tidak muncul console hitam. Lihat `_flag_subprocess()`.
 - **Threading**: konversi di thread terpisah; UI hanya di-update dari thread

@@ -10,6 +10,8 @@ import subprocess
 
 from core.ffmpeg_utils import (
     BITRATE_DEFAULT,
+    KUALITAS_VBR_DEFAULT,
+    MODE_CBR,
     build_command,
     get_duration,
     parse_out_time_to_seconds,
@@ -75,18 +77,22 @@ def konversi_file(
     durasi=None,
     on_progress=None,
     batal_event=None,
+    mode=MODE_CBR,
+    kualitas_vbr=KUALITAS_VBR_DEFAULT,
 ):
-    """Konversi satu file sumber menjadi MP3.
+    """Konversi/kompres satu file sumber menjadi MP3.
 
     Parameter:
-        path_sumber  : file video/audio yang dikonversi.
+        path_sumber  : file video/audio (termasuk .mp3 untuk dikompres ulang).
         path_tujuan  : path MP3 yang diinginkan (akan dibuat unik bila perlu).
         ffmpeg_path  : path binary ffmpeg hasil find_ffmpeg().
-        bitrate      : mis. "192k".
+        bitrate      : mis. "192k" (dipakai pada mode CBR).
         durasi       : durasi detik bila sudah diketahui; bila None diambil sendiri.
         on_progress  : callback(persen: float) untuk update UI (opsional).
         batal_event  : threading.Event; bila di-set, proses dihentikan dan file
                        parsial dihapus.
+        mode         : MODE_CBR (bitrate tetap) atau MODE_VBR (kualitas variabel).
+        kualitas_vbr : nilai -q:a libmp3lame untuk mode VBR.
 
     Mengembalikan HasilKonversi dengan status SELESAI / GAGAL / DIBATALKAN.
     """
@@ -113,7 +119,10 @@ def konversi_file(
     if durasi is None:
         durasi = get_duration(path_sumber, ffmpeg_path)
 
-    perintah = build_command(path_sumber, path_tujuan, bitrate=bitrate, ffmpeg_path=ffmpeg_path)
+    perintah = build_command(
+        path_sumber, path_tujuan, bitrate=bitrate, ffmpeg_path=ffmpeg_path,
+        mode=mode, kualitas_vbr=kualitas_vbr,
+    )
 
     try:
         proses = subprocess.Popen(

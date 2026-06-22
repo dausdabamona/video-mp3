@@ -118,6 +118,40 @@ def test_konversi_anti_timpa_membuat_file_kedua(tmp_path):
 
 
 @butuh_ffmpeg
+def test_kompres_mp3_ke_bitrate_lebih_kecil_mengecilkan_ukuran(tmp_path):
+    # Buat MP3 sumber dengan bitrate tinggi, lalu kompres ke bitrate rendah.
+    sumber = str(tmp_path / "asli.mp3")
+    _buat_video_uji(tmp_path / "tmp.mp4", ffmpeg_path, durasi=3)
+    subprocess.run(
+        [ffmpeg_path, "-y", "-i", str(tmp_path / "tmp.mp4"),
+         "-vn", "-acodec", "libmp3lame", "-b:a", "320k", sumber],
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True,
+    )
+    ukuran_asli = os.path.getsize(sumber)
+
+    hasil = converter.konversi_file(
+        sumber, str(tmp_path / "kecil.mp3"),
+        ffmpeg_path=ffmpeg_path, bitrate="96k",
+    )
+    assert hasil.status == converter.Status.SELESAI
+    assert os.path.getsize(hasil.path_tujuan) < ukuran_asli
+
+
+@butuh_ffmpeg
+def test_kompres_mode_vbr_menghasilkan_mp3_valid(tmp_path):
+    sumber = str(tmp_path / "uji.mp4")
+    _buat_video_uji(sumber, ffmpeg_path, durasi=2)
+    hasil = converter.konversi_file(
+        sumber, str(tmp_path / "vbr.mp3"),
+        ffmpeg_path=ffmpeg_path,
+        mode=ffmpeg_utils.MODE_VBR, kualitas_vbr="4",
+    )
+    assert hasil.status == converter.Status.SELESAI
+    assert os.path.getsize(hasil.path_tujuan) > 0
+    assert ffmpeg_utils.get_duration(hasil.path_tujuan, ffmpeg_path) > 1.0
+
+
+@butuh_ffmpeg
 def test_batal_menghapus_file_parsial(tmp_path):
     import threading
 

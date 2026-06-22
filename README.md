@@ -14,9 +14,14 @@ server, tidak ada API. Cocok untuk koneksi internet yang tidak stabil.
   **drag & drop** (bila `tkinterdnd2` terpasang).
 - Format sumber yang didukung:
   - Video: `mp4, mkv, avi, mov, webm, flv, wmv, m4v, 3gp, ts`
-  - Audio: `m4a, aac, wav, flac, ogg, opus, wma`
+  - Audio: `mp3, m4a, aac, wav, flac, ogg, opus, wma`
   - Semua diubah menjadi `.mp3`.
-- Pilih **bitrate** (96k / 128k / 192k / 256k / 320k, default **192k**).
+- **Kompres MP3**: file `.mp3` yang sudah ada bisa diperkecil dengan memilih
+  bitrate/kualitas yang lebih hemat (file asli tidak ditimpa).
+- Dua mode kompresi:
+  - **CBR** — bitrate tetap (96k / 128k / 192k / 256k / 320k, default **192k**).
+  - **VBR** — kualitas variabel (`-q:a`), umumnya menghasilkan file lebih kecil
+    pada kualitas setara (pilihan V0/V2/V4/V6).
 - Simpan hasil di **folder sumber** atau folder pilihan sendiri.
 - Konversi berjalan di **thread terpisah** sehingga jendela tidak macet.
 - **Progres per-file dan total**, lengkap dengan tombol **Batal** (file MP3

@@ -110,6 +110,21 @@ def test_build_command_default_bitrate_192k():
     assert perintah[idx + 1] == "192k"
 
 
+def test_build_command_mode_vbr_memakai_qa_bukan_ba():
+    perintah = ffmpeg_utils.build_command(
+        "masuk.mp3", "keluar.mp3", mode=ffmpeg_utils.MODE_VBR, kualitas_vbr="2",
+    )
+    assert "-q:a" in perintah
+    assert perintah[perintah.index("-q:a") + 1] == "2"
+    assert "-b:a" not in perintah
+
+
+def test_build_command_mode_cbr_default_memakai_ba_bukan_qa():
+    perintah = ffmpeg_utils.build_command("masuk.mp4", "keluar.mp3")
+    assert "-b:a" in perintah
+    assert "-q:a" not in perintah
+
+
 def test_build_command_sumber_dan_tujuan_serta_progress_pipe():
     perintah = ffmpeg_utils.build_command("masuk.mp4", "keluar.mp3", ffmpeg_path="/usr/bin/ffmpeg")
     assert perintah[0] == "/usr/bin/ffmpeg"
@@ -123,6 +138,12 @@ def test_build_command_sumber_dan_tujuan_serta_progress_pipe():
 def test_is_file_didukung_menerima_video_dan_audio():
     assert ffmpeg_utils.is_file_didukung("video.MP4")
     assert ffmpeg_utils.is_file_didukung("suara.flac")
+
+
+def test_is_file_didukung_menerima_mp3_untuk_dikompres():
+    # MP3 harus diterima agar bisa dikompres ulang ke ukuran lebih kecil.
+    assert ffmpeg_utils.is_file_didukung("lagu.mp3")
+    assert ffmpeg_utils.is_file_didukung("LAGU.MP3")
 
 
 def test_is_file_didukung_menolak_ekstensi_lain():
